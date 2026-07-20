@@ -3,6 +3,7 @@ package com.extendedae_plus.compat;
 import appeng.api.upgrades.IUpgradeInventory;
 import appeng.api.upgrades.UpgradeInventories;
 import com.extendedae_plus.init.ModItems;
+import com.extendedae_plus.util.Logger;
 import com.glodblock.github.extendedae.common.parts.PartExPatternProvider;
 import com.glodblock.github.extendedae.common.tileentities.TileExPatternProvider;
 import net.minecraft.world.item.ItemStack;
@@ -133,7 +134,8 @@ public final class UpgradeSlotCompat {
 
             // 惰性槽位扩展：每次获取库存时自动检测并修正，不依赖任何 Mixin 回调
             int target = getPatternProviderAppfluxUpgradeSlots();
-            if (inventory.size() != target) {
+            int currentSize = inventory.size();
+            if (currentSize != target) {
                 expandAppfluxSlots(logicInstance, inventory, target);
             }
 
@@ -178,9 +180,9 @@ public final class UpgradeSlotCompat {
             }
 
             setPatternProviderAppfluxUpgrades(logicInstance, expanded);
-            System.err.println("[EAPFix-SC] Expanded Appflux slots: " + current.size() + " -> " + target);
+            Logger.EAP$LOGGER.warn("[EAPFix-SC] Expanded Appflux slots from {} to {}", current.size(), target);
         } catch (Exception e) {
-            System.err.println("[EAPFix-SC] Slot expansion failed: " + e.getMessage());
+            Logger.EAP$LOGGER.warn("[EAPFix-SC] Slot expansion failed: {}", e.getMessage());
         }
     }
 
