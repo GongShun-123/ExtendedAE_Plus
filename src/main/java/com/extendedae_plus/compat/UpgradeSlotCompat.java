@@ -181,6 +181,10 @@ public final class UpgradeSlotCompat {
                     }
             );
 
+            // 先设置字段再复制物品——防止 insertItem 触发回调时
+            // getPatternProviderAppfluxUpgrades 读到旧库存导致无限递归
+            setPatternProviderAppfluxUpgrades(logicInstance, expanded);
+
             // 复制已有物品
             int copyCount = Math.min(current.size(), target);
             for (int i = 0; i < copyCount; i++) {
@@ -190,7 +194,6 @@ public final class UpgradeSlotCompat {
                 }
             }
 
-            setPatternProviderAppfluxUpgrades(logicInstance, expanded);
             Logger.EAP$LOGGER.warn("[EAPFix-SC] Expanded Appflux slots from {} to {}", current.size(), target);
         } catch (Exception e) {
             Logger.EAP$LOGGER.warn("[EAPFix-SC] Slot expansion failed: {}", e.getMessage());

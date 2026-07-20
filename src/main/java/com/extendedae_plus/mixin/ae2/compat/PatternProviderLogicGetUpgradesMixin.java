@@ -51,13 +51,14 @@ public abstract class PatternProviderLogicGetUpgradesMixin {
                 }
             );
 
+            // 先设置字段再复制物品——防止无限递归
+            afField.set(this, expanded);
+
             int copyCount = Math.min(current.size(), target);
             for (int i = 0; i < copyCount; i++) {
                 net.minecraft.world.item.ItemStack stack = current.getStackInSlot(i);
                 if (!stack.isEmpty()) expanded.insertItem(i, stack.copy(), false);
             }
-
-            afField.set(this, expanded);
             System.out.println("[EAPFix] Expanded: " + current.size() + " -> " + target + " for " + this.getClass().getSimpleName());
         } catch (Exception e) {
             System.out.println("[EAPFix] Error: " + e.getMessage());
