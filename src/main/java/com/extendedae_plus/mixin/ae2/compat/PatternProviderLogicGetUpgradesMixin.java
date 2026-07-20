@@ -1,52 +1,41 @@
 package com.extendedae_plus.mixin.ae2.compat;
 
+import appeng.api.upgrades.IUpgradeInventory;
+import appeng.api.upgrades.UpgradeInventories;
 import appeng.helpers.patternprovider.PatternProviderLogic;
 import com.extendedae_plus.compat.UpgradeSlotCompat;
+import net.minecraft.nbt.CompoundTag;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import net.minecraft.nbt.CompoundTag;
 
 /**
- * 最终方案：单一 @Inject，最小依赖。
- * - 仅注入 readFromNBT TAIL，优先级 1500 确保在 Appflux 加载后执行。
- * - 不使用 @Shadow，所有操作通过纯反射完成。
- * - 不使用 @Override，不实现任何接口。
+ * readFromNBT 后扩展 Appflux 槽位。prio 1500 确保在 Appflux loadUpgrade(prio 1000) 之后执行。
+ * 遍历类继承链查找 af_$upgrades 字段，兼容 MeteoritePatternProviderLogic 等子类。
  */
 @Mixin(value = PatternProviderLogic.class, priority = 1500, remap = false)
 public abstract class PatternProviderLogicGetUpgradesMixin {
 
-    @Unique
-    private static boolean eap$fixLogged = false;
-
-    @Inject(method = "readFromNBT", at = @At("TAIL"), remap = false)
-    private void onReadFromNBT(CompoundTag nbt, CallbackInfo ci) {
-        if (!eap$fixLogged) {
-            eap$fixLogged = true;
-            // 使用 throw+catch 确保日志写入
-            try {
-                throw new RuntimeException("[EAPFix] readFromNBT injection FIRED at prio 1500! Class=" + this.getClass().getSimpleName());
-            } catch (RuntimeException e) {
-                e.printStackTrace();
-            }
-        }
-
+    @Inject(method = "readFromNBT", at = @At("TAIL"))
+    private void expandSlotsAfterReadFromNBT(CompoundTag tag, CallbackInfo ci) {
         try {
             if (!UpgradeSlotCompat.shouldListenToAppfluxUpgrades()) return;
 
-            java.lang.reflect.Field afField = this.getClass().getDeclaredField("af_$upgrades");
+            // 遍历继承链查找 af_$upgrades（Mixins 字段在父类 PatternProviderLogic 声明）
+            java.lang.reflect.Field afField = findFieldInHierarchy(this.getClass(), "af_$upgrades");
+            if (afField == null) return;
             afField.setAccessible(true);
             Object val = afField.get(this);
-            if (!(val instanceof appeng.api.upgrades.IUpgradeInventory)) return;
+            if (!(val instanceof IUpgradeInventory)) return;
 
-            appeng.api.upgrades.IUpgradeInventory current = (appeng.api.upgrades.IUpgradeInventory) val;
+            IUpgradeInventory current = (IUpgradeInventory) val;
             int target = UpgradeSlotCompat.getPatternProviderAppfluxUpgradeSlots();
             if (current.size() == target) return;
 
-            // 反射获取 host
-            java.lang.reflect.Field hostField = this.getClass().getDeclaredField("host");
+            // 获取 host
+            java.lang.reflect.Field hostField = findFieldInHierarchy(this.getClass(), "host");
+            if (hostField == null) return;
             hostField.setAccessible(true);
             Object host = hostField.get(this);
             if (host == null) return;
@@ -54,9 +43,8 @@ public abstract class PatternProviderLogicGetUpgradesMixin {
             Object icon = host.getClass().getMethod("getTerminalIcon").invoke(host);
             Object item = icon.getClass().getMethod("getItem").invoke(icon);
 
-            appeng.api.upgrades.IUpgradeInventory expanded = appeng.api.upgrades.UpgradeInventories.forMachine(
-                (net.minecraft.world.level.ItemLike) item,
-                target,
+            IUpgradeInventory expanded = UpgradeInventories.forMachine(
+                (net.minecraft.world.level.ItemLike) item, target,
                 () -> {
                     try { UpgradeSlotCompat.invokePatternProviderAppfluxUpgradesChanged(this); }
                     catch (Exception ignored) {}
@@ -66,17 +54,21 @@ public abstract class PatternProviderLogicGetUpgradesMixin {
             int copyCount = Math.min(current.size(), target);
             for (int i = 0; i < copyCount; i++) {
                 net.minecraft.world.item.ItemStack stack = current.getStackInSlot(i);
-                if (!stack.isEmpty()) {
-                    expanded.insertItem(i, stack.copy(), false);
-                }
+                if (!stack.isEmpty()) expanded.insertItem(i, stack.copy(), false);
             }
 
             afField.set(this, expanded);
-            throw new RuntimeException("[EAPFix] EXPANDED: " + current.size() + " -> " + target);
-        } catch (RuntimeException e) {
-            e.printStackTrace();
+            System.out.println("[EAPFix] Expanded: " + current.size() + " -> " + target + " for " + this.getClass().getSimpleName());
         } catch (Exception e) {
-            throw new RuntimeException("[EAPFix] FAILED: " + e.getMessage(), e);
+            System.out.println("[EAPFix] Error: " + e.getMessage());
         }
+    }
+
+    private static java.lang.reflect.Field findFieldInHierarchy(Class<?> clazz, String name) {
+        while (clazz != null && clazz != Object.class) {
+            try { return clazz.getDeclaredField(name); }
+            catch (NoSuchFieldException e) { clazz = clazz.getSuperclass(); }
+        }
+        return null;
     }
 }

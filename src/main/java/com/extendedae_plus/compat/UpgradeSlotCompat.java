@@ -148,8 +148,18 @@ public final class UpgradeSlotCompat {
 
     private static void expandAppfluxSlots(Object logicInstance, IUpgradeInventory current, int target) {
         try {
-            // 获取 host 以读取图标
-            Field hostField = logicInstance.getClass().getDeclaredField("host");
+            // 获取 host 以读取图标（遍历继承链，Mixins 的 host 字段可能在父类声明）
+            Field hostField = null;
+            Class<?> searchClass = logicInstance.getClass();
+            while (searchClass != null && searchClass != Object.class) {
+                try {
+                    hostField = searchClass.getDeclaredField("host");
+                    break;
+                } catch (NoSuchFieldException e) {
+                    searchClass = searchClass.getSuperclass();
+                }
+            }
+            if (hostField == null) return;
             hostField.setAccessible(true);
             Object host = hostField.get(logicInstance);
             if (host == null) return;
@@ -228,13 +238,18 @@ public final class UpgradeSlotCompat {
     }
 
     private static Field findField(Class<?> owner, String[] candidates) {
-        for (String candidate : candidates) {
-            try {
-                Field field = owner.getDeclaredField(candidate);
-                field.setAccessible(true);
-                return field;
-            } catch (NoSuchFieldException ignored) {
+        // 遍历类继承链，Mixin 添加的字段可能在父类（如 PatternProviderLogic）中声明
+        Class<?> clazz = owner;
+        while (clazz != null && clazz != Object.class) {
+            for (String candidate : candidates) {
+                try {
+                    Field field = clazz.getDeclaredField(candidate);
+                    field.setAccessible(true);
+                    return field;
+                } catch (NoSuchFieldException ignored) {
+                }
             }
+            clazz = clazz.getSuperclass();
         }
         return null;
     }
