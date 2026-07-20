@@ -72,6 +72,7 @@
     "ae2.autopattern.PatternProviderLogicContainsRedirectMixin",
     "ae2.compat.PatternProviderCompatMixin",
     "ae2.compat.PatternProviderLogicCompatMixin",
+    "ae2.compat.PatternProviderLogicGetUpgradesMixin",
     "ae2.helpers.InterfaceLogicChannelCardMixin",
     "ae2.helpers.InterfaceLogicTickerMixin",
     "ae2.helpers.InterfaceLogicUpgradesMixin",

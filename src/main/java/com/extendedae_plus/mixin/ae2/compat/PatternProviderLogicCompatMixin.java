@@ -45,7 +45,7 @@ import java.util.UUID;
  * 优先级设置为500，在appflux之前应用
  * 根据appflux是否存在来决定是否实现IUpgradeableObject接口
  */
-@Mixin(value = PatternProviderLogic.class, priority = 1500, remap = false)
+@Mixin(value = PatternProviderLogic.class, priority = 500, remap = false)
 public abstract class PatternProviderLogicCompatMixin implements IUpgradeableObject, IInterfaceWirelessLinkBridge,
         PatternProviderLogicVirtualCompatBridge, PatternProviderPageUnlockBridge {
     
