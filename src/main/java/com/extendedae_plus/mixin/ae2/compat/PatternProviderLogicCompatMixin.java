@@ -289,6 +289,9 @@ public abstract class PatternProviderLogicCompatMixin implements IUpgradeableObj
 
     @Override
     public IUpgradeInventory getUpgrades() {
+        Logger.EAP$LOGGER.warn("[EAPFix] getUpgrades() called, shouldManageLocal={}, shouldListen={}",
+                UpgradeSlotCompat.shouldManageLocalUpgradeInventory(),
+                UpgradeSlotCompat.shouldListenToAppfluxUpgrades());
         if (UpgradeSlotCompat.shouldManageLocalUpgradeInventory()) {
             return this.eap$compatUpgrades != null ? this.eap$compatUpgrades : UpgradeInventories.empty();
         } else {
