@@ -241,6 +241,12 @@ public abstract class PatternProviderLogicCompatMixin implements IUpgradeableObj
             }
 
             if (UpgradeSlotCompat.shouldEnableChannelCard()) {
+                // 惰性槽位扩展：在 NBT 加载后、频道初始化前强制检查并修正槽位数
+                // 解决构造函数注入因 Mixin 加载顺序变化被跳过的问题
+                IUpgradeInventory inv = UpgradeSlotCompat.getPatternProviderAppfluxUpgrades(this);
+                if (inv != null && UpgradeSlotCompat.shouldListenToAppfluxUpgrades()) {
+                    eap$ensureExpandedSlots(inv);
+                }
                 eap$compatLastChannel = -1;
                 eap$compatLastOwner = null;
                 eap$compatHasInitialized = false;
