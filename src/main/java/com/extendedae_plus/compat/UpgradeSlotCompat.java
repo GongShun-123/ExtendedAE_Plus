@@ -1,10 +1,12 @@
 package com.extendedae_plus.compat;
 
 import appeng.api.upgrades.IUpgradeInventory;
+import appeng.api.upgrades.UpgradeInventories;
 import com.extendedae_plus.init.ModItems;
 import com.glodblock.github.extendedae.common.parts.PartExPatternProvider;
 import com.glodblock.github.extendedae.common.tileentities.TileExPatternProvider;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.ItemLike;
 import net.minecraftforge.fml.ModList;
 
 import java.lang.reflect.Field;
@@ -124,9 +126,61 @@ public final class UpgradeSlotCompat {
 
         try {
             Object value = field.get(logicInstance);
-            return value instanceof IUpgradeInventory inventory ? inventory : null;
+            if (!(value instanceof IUpgradeInventory)) {
+                return null;
+            }
+            IUpgradeInventory inventory = (IUpgradeInventory) value;
+
+            // 惰性槽位扩展：每次获取库存时自动检测并修正，不依赖任何 Mixin 回调
+            int target = getPatternProviderAppfluxUpgradeSlots();
+            if (inventory.size() != target) {
+                expandAppfluxSlots(logicInstance, inventory, target);
+            }
+
+            return inventory;
         } catch (IllegalAccessException e) {
             return null;
+        }
+    }
+
+    private static void expandAppfluxSlots(Object logicInstance, IUpgradeInventory current, int target) {
+        try {
+            // 获取 host 以读取图标
+            Field hostField = logicInstance.getClass().getDeclaredField("host");
+            hostField.setAccessible(true);
+            Object host = hostField.get(logicInstance);
+            if (host == null) return;
+
+            // 获取图标物品
+            java.lang.reflect.Method getIcon = host.getClass().getMethod("getTerminalIcon");
+            Object icon = getIcon.invoke(host);
+            java.lang.reflect.Method getItem = icon.getClass().getMethod("getItem");
+            Object item = getItem.invoke(icon);
+            if (!(item instanceof net.minecraft.world.level.ItemLike)) return;
+
+            // 创建扩展库存
+            IUpgradeInventory expanded = UpgradeInventories.forMachine(
+                    (net.minecraft.world.level.ItemLike) item,
+                    target,
+                    () -> {
+                        try { invokePatternProviderAppfluxUpgradesChanged(logicInstance); }
+                        catch (Exception ignored) {}
+                    }
+            );
+
+            // 复制已有物品
+            int copyCount = Math.min(current.size(), target);
+            for (int i = 0; i < copyCount; i++) {
+                net.minecraft.world.item.ItemStack stack = current.getStackInSlot(i);
+                if (!stack.isEmpty()) {
+                    expanded.insertItem(i, stack.copy(), false);
+                }
+            }
+
+            setPatternProviderAppfluxUpgrades(logicInstance, expanded);
+            System.err.println("[EAPFix-SC] Expanded Appflux slots: " + current.size() + " -> " + target);
+        } catch (Exception e) {
+            System.err.println("[EAPFix-SC] Slot expansion failed: " + e.getMessage());
         }
     }
 
