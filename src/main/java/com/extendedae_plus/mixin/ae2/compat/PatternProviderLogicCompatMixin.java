@@ -504,9 +504,11 @@ public abstract class PatternProviderLogicCompatMixin implements IUpgradeableObj
     private void eap$ensureExpandedSlots(IUpgradeInventory currentUpgrades) {
         try {
             int targetSlots = UpgradeSlotCompat.getPatternProviderAppfluxUpgradeSlots(this.host);
-            if (currentUpgrades.size() == targetSlots) {
+            int currentSize = currentUpgrades.size();
+            if (currentSize == targetSlots) {
                 return;
             }
+            System.err.println("[EAPFix] Expanding slots: " + currentSize + " -> " + targetSlots + " for " + host.getClass().getSimpleName());
 
             IUpgradeInventory newUpgrades = UpgradeInventories.forMachine(
                     host.getTerminalIcon().getItem(),
@@ -621,6 +623,13 @@ public abstract class PatternProviderLogicCompatMixin implements IUpgradeableObj
                         } catch (Throwable ignored) {}
                     }
                 } else {
+                    // 在延迟初始化中强制确保槽位扩展，作为构造函数注入的最终兜底
+                    if (UpgradeSlotCompat.shouldListenToAppfluxUpgrades()) {
+                        IUpgradeInventory inv = UpgradeSlotCompat.getPatternProviderAppfluxUpgrades(this);
+                        if (inv != null) {
+                            eap$ensureExpandedSlots(inv);
+                        }
+                    }
                     eap$compatInitializeChannelLink();
                     eap$compatSyncVirtualCraftingState();
                 }
