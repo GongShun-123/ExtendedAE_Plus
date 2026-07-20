@@ -120,6 +120,7 @@ public final class UpgradeSlotCompat {
     }
 
     public static IUpgradeInventory getPatternProviderAppfluxUpgrades(Object logicInstance) {
+        Logger.EAP$LOGGER.warn("[EAPFix] getPatternProviderAppfluxUpgrades called, class={}", logicInstance.getClass().getSimpleName());
         Field field = resolvePatternProviderAppfluxUpgradesField(logicInstance.getClass());
         if (field == null) {
             return null;
