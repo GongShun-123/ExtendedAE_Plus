@@ -146,7 +146,11 @@ public final class UpgradeSlotCompat {
         }
     }
 
+    private static final java.util.Set<Integer> eap$expanding = java.util.Collections.synchronizedSet(new java.util.HashSet<>());
+
     private static void expandAppfluxSlots(Object logicInstance, IUpgradeInventory current, int target) {
+        int identity = System.identityHashCode(logicInstance);
+        if (!eap$expanding.add(identity)) return; // 防重入
         try {
             // 获取 host 以读取图标（遍历继承链，Mixins 的 host 字段可能在父类声明）
             Field hostField = null;
@@ -197,6 +201,8 @@ public final class UpgradeSlotCompat {
             Logger.EAP$LOGGER.warn("[EAPFix-SC] Expanded Appflux slots from {} to {}", current.size(), target);
         } catch (Exception e) {
             Logger.EAP$LOGGER.warn("[EAPFix-SC] Slot expansion failed: {}", e.getMessage());
+        } finally {
+            eap$expanding.remove(identity);
         }
     }
 
